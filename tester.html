@@ -1,0 +1,433 @@
+<html>
+<head>
+<title>Hello</title>
+<style>
+
+.fill {
+    width: 100%;
+    height: 100%;
+}
+
+table {
+    border-collapse: collapse;
+}
+th, td {
+    padding: 0;
+}
+
+</style>
+</head>
+<body>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="gl519.js"></script>
+<script src="jstat.js"></script>
+<script>
+
+var array_size = 100
+
+function drawCanvas(w, h) {
+    var c = $('<canvas/>').attr('width', w).attr('height', h)
+    c.css('position', 'absolute')
+    c.css('left', '0px')
+    c.css('top', '0px')
+    $('body').append(c)
+    return c
+}
+
+function drawGraph(data, color) {
+    var c = drawCanvas(400, 400)
+
+    var w = 1 * c.attr('width')
+    var h = 1 * c.attr('height')
+    var g = c.get()[0].getContext("2d")
+
+    g.beginPath()
+
+    var maxY = _.max(data)
+    var minY = _.min(data)
+
+    maxY = 1
+    minY = 0
+
+    function getX(x) {
+        return _.lerp(0, 0, data.length - 1, w, x)
+    }
+
+    function getY(y) {
+        return _.lerp(minY, h, maxY, 0, y)
+    }
+
+    g.moveTo(getX(0), getY(0))
+    _.each(data, function (y, x) {
+        g.lineTo(getX(x), getY(y))
+    })
+    g.lineTo(getX(data.length - 1), getY(0))
+    g.moveTo(getX(0), getY(0))
+
+    g.fillStyle = color
+    g.fill()
+}
+
+function drawGraph2(data, color) {
+    var c = drawCanvas(400, 400)
+
+    var w = 1 * c.attr('width')
+    var h = 1 * c.attr('height')
+    var g = c.get()[0].getContext("2d")
+
+    g.beginPath()
+
+    var maxX = _.max(data, function (e) { return e[0] })[0]
+    var minX = _.min(data, function (e) { return e[0] })[0]
+
+    var maxY = _.max(data, function (e) { return e[1] })[1]
+    var minY = _.min(data, function (e) { return e[1] })[1]
+
+    function getX(x) {
+        return _.lerp(minX, 0, maxX, w, x)
+    }
+
+    function getY(y) {
+        return _.lerp(minY, h, maxY, 0, y)
+    }
+
+    g.moveTo(getX(data[0][0]), getY(data[0][1]))
+    _.each(data.slice(1), function (e) {
+        g.lineTo(getX(e[0]), getY(e[1]))
+    })
+
+    g.lineWidth = 1
+    g.strokeStyle = color
+    g.stroke()
+}
+
+function createBeta(a, b) {
+    return { a : a, b : b }
+}
+
+function negBeta(B) {
+    return { a : B.b, b : B.a }
+}
+
+function betaMean(B) {
+    return B.a / (B.a + B.b)
+}
+
+function betaVar(B) {
+    return B.a * B.b / (B.a + B.b) / (B.a + B.b) / (B.a + B.b + 1)
+}
+
+function betaSample(B) {
+    return jStat.ibetainv(Math.random(), B.a, B.b)
+}
+
+function beta_icdf(B, x) {
+    return jStat.ibetainv(x, B.a, B.b)
+}
+
+function betaToArr(B, n) {
+    if (!n) n = array_size
+    var arr = []
+    for (var i = 0; i < n; i++) {
+        arr.push(jStat.ibetainv(_.lerp(0, 0, n - 1, 1, i), B.a, B.b))
+    }
+    return arr
+}
+
+function arrOp(X, Y, op) {
+    var arr = []
+    _.each(X, function (x) {
+        _.each(Y, function (y) {
+            arr.push(op(x, y))
+        })
+    })
+    arr.sort()
+    var arr2 = []
+    for (var i = 0; i < X.length; i++) {
+        arr2.push(arr[Math.round(_.lerp(0, 0, X.length - 1, arr.length - 1, i))])
+    }
+    return arr2
+}
+
+function arrOp3(X, Y, Z, op) {
+    var arr = []
+    _.each(X, function (x) {
+        _.each(Y, function (y) {
+            _.each(Z, function (z) {
+                arr.push(op(x, y, z))
+            })
+        })
+    })
+    arr.sort()
+    var arr2 = []
+    for (var i = 0; i < X.length; i++) {
+        arr2.push(arr[Math.round(_.lerp(0, 0, X.length - 1, arr.length - 1, i))])
+    }
+    return arr2
+}
+
+function arrAdd(X, Y) {
+    return arrOp(X, Y, function (x, y) { return x + y })
+}
+
+function arrMul(X, Y) {
+    return arrOp(X, Y, function (x, y) { return x * y })
+}
+
+function arrDiv(X, Y) {
+    return arrOp(X, Y, function (x, y) { return y == 0 ? 0 : (x / y) })
+}
+
+function arrDivAdd(X, Y) {
+    return arrOp(X, Y, function (x, y) { return y == 0 ? 0 : (x / (x + y)) })
+}
+
+function arrDivMulAdd(W, X, Y) {
+    return arrOp3(W, X, Y, function (w, x, y) {
+        if (x == 0 && y == 0) return 0
+        return w * x / (w * x + (1 - w) * y)
+    })
+}
+
+function arrMean(X) {
+    return _.sum(X) / X.length
+}
+
+function betaToSubj(X) {
+    var S = {}
+    S.a = .5
+    S.u = 2 / (X.a + X.b)
+    S.b = (X.a - 1) * S.u / 2
+    S.d = (X.b - 1) * S.u / 2
+    return S
+}
+
+function subjNeg(SX) {
+    return betaToSubj(negBeta(subjToBeta(SX)))
+}
+
+function subjAdd(SX, SY) {
+    var S = {}
+    S.b = SX.b + SY.b
+    S.d = (SX.a * (SX.d - SY.b) + SY.a * (SY.d - SX.b)) / (SX.a + SY.a)
+    S.u = (SX.a * SX.u + SY.a * SY.u) / (SX.a + SY.a)
+    S.a = SX.a + SY.a
+    return S
+}
+
+function subjMul(SX, SY) {
+    var S = {}
+    S.b = SX.b * SY.b + ((1 - SX.a) * SY.a * SX.b * SY.u + SX.a * (1 - SY.a) * SX.u * SY.b) / (1 - SX.a * SY.a)
+    S.d = SX.d + SY.d - SX.d * SY.d
+    S.u = SX.u * SY.u + ((1 - SY.a) * SX.b * SY.u + (1 - SX.a) * SX.u * SY.b) / (1 - SX.a * SY.a)
+    S.a = SX.a * SY.a
+    return S
+}
+
+function subjDiv(SX, SY) {
+    var S = {}
+    S.b = SY.a * (SX.b + SX.a * SX.u) / (SY.a - SX.a) / (SY.b + SY.a * SY.u) - SX.a * (1 - SX.d) / (SY.a - SX.a) / (1 - SY.d)
+    S.d = (SX.d - SY.d) / (1 - SY.d)
+    S.u = SY.a * (1 - SX.d) / (SY.a - SX.a) / (1 - SY.d) - SY.a * (SX.b + SX.a * SX.u) / (SY.a - SX.a) / (SY.b + SY.a * SY.u)
+    S.a = SX.a / SY.a
+    return S
+}
+
+function subjDivMulAdd(SX, SY, SZ) {
+    var S = {}
+
+    var SX_E = (SX.b + SX.a * SX.u)
+    var SY_E = (SY.b + SY.a * SY.u)
+    var SZ_E = (SZ.b + SZ.a * SZ.u)
+    var E = SX_E * SY_E / (SX_E * SY_E + (1 - SX_E) * SZ_E)
+
+    S.d = (SX.d + (1 - SX.a) * SX.u) * SZ.b / (
+        (SX.b + SX.a * SX.u) * (1 - SY.d) +
+        (SX.d + (1 - SX.a) * SX.u) * SZ.b)
+
+    S.a = SX.a * SY.a / (SX.a * SY.a + (1 - SX.a) * SZ.a)
+
+    S.b = (E + S.d * S.a - S.a) / (1 - S.a)
+
+    S.u = 1 - S.b - S.d
+
+    return S
+}
+
+function subjDivMulAdd2(SX, SY, SZ) {
+    var S = {}
+
+    var SX_E = (SX.b + SX.a * SX.u)
+    var SY_E = (SY.b + SY.a * SY.u)
+    var SZ_E = (SZ.b + SZ.a * SZ.u)
+    var E = SX_E * SY_E / (SX_E * SY_E + (1 - SX_E) * SZ_E)
+
+    S.d = SX.d * SZ.b / (
+        (SX.b + SX.a * SX.u) * (1 - SY.d) +
+        (SX.d + (1 - SX.a) * SX.u) * (1 - SZ.d))
+
+    S.a = SX.a * SY.a / (SX.a * SY.a + (1 - SX.a) * SZ.a)
+
+    S.b = (E + S.d * S.a - S.a) / (1 - S.a)
+
+    S.u = 1 - S.b - S.d
+
+    return S
+}
+
+function fusion_jpm(a, b){
+    var s = {}
+
+    var div = a.u + b.u - a.u*b.u;
+
+    if (div != 0){
+        s.b = (a.b*b.u + b.b*a.u) / div;
+        s.d = (a.d*b.u + b.d*a.u) / div;
+        s.u = a.u*b.u / div;
+        s.a = (a.a*b.u + b.a*a.u - (a.a+b.a)*a.u*b.u) / div;
+    } else {
+        var lim = b.u / a.u;
+        s.b = (lim*a.b + b.b) / (lim+1);
+        s.d = (lim*a.d + b.d) / (lim+1);
+        s.u = 0;
+        s.a = (lim*a.a + b.a) / (lim+1);
+    }
+    return s;
+}
+
+function subjToBeta(S) {
+    var B = {}
+    B.a = 2 * S.b / S.u + 2 * S.a
+    B.b = 2 * S.d / S.u + 2 * (1 - S.a)
+    return B
+}
+
+function subjToArr(S) {
+    return betaToArr(subjToBeta(S))
+}
+
+function randomSubj() {
+    var S = {}
+    S.b = Math.random()
+    S.u = Math.random()
+    S.d = Math.random()
+    S.a = Math.random()
+    var sum = S.b + S.u + S.d
+    S.b /= sum
+    S.u /= sum
+    S.d /= sum
+    return S
+}
+
+function mean(a) {
+    var sum = 0
+    for (var i = 0; i < a.length; i++) {
+        sum += a[i]
+    }
+    return sum / a.length
+}
+
+function variance(a) {
+    var m = mean(a)
+    var sum = 0
+    for (var i = 0; i < a.length; i++) {
+        sum += Math.pow(a[i] - m, 2)
+    }
+    return sum / (a.length - 1)
+}
+
+$(function () {
+
+    function actualDivMulAdd(x, y, z, graphIt) {
+        var X = subjToBeta(x)
+        var Y = subjToBeta(y)
+        var Z = subjToBeta(z)
+
+        var samples = []
+        for (var i = 0; i < 100; i++) {
+            x = betaSample(X)
+            y = betaSample(Y)
+            z = betaSample(Z)
+            samples.push(x * y / (x * y + (1 - x) * z))
+        }
+
+        samples.sort(function (a, b) { return a - b })
+
+        if (graphIt) {
+            drawGraph(samples, 'rgba(255, 0, 0, 0.2)')
+        }
+
+        return samples[Math.floor(samples.length / 2)]
+    }
+
+    var algs = [
+        {
+            name : 'original',
+            func : function (x, y, z) {
+                var top = subjMul(x, y)
+                var bottom = subjAdd(top, subjMul(subjNeg(x), z))
+                return subjDiv(top, bottom)
+            },
+            color : 'rgba(255, 0, 0, 0.2)'
+        },
+        {
+            name : 'subjDivMulAdd',
+            func : subjDivMulAdd,
+            color : 'rgba(255, 0, 0, 0.2)'
+        },
+        {
+            name : 'subjDivMulAdd2',
+            func : subjDivMulAdd2,
+            color : 'rgba(255, 0, 0, 0.2)'
+        },
+        {
+            name : 'fusion',
+            func : function (x, y, z) {
+                return fusion_jpm(x, fusion_jpm(y, z))
+            },
+            color : 'rgba(255, 0, 0, 0.2)'
+        }
+    ]
+    _.each(algs, function (a) {
+        a.rmse = 0
+        a.errors = 0
+    })
+
+    var n = 1000
+    for (var i = 0; i < n; i++) {
+        var x = randomSubj()
+        var y = randomSubj()
+        var z = randomSubj()
+
+        var actual = actualDivMulAdd(x, y, z, i == 0)
+        if (i == 0)
+            console.log('actual = ' + actual)
+
+        _.each(algs, function (a) {
+            var approx = a.func(x, y, z)
+            approx = subjToBeta(approx)
+
+            if (i == 0) {
+                drawGraph(betaToArr(approx), a.color)
+                console.log('alg ' + a + ' = ' + beta_icdf(approx, .5))
+            }
+
+            if (approx.a > 0 && approx.b > 0) {
+                approx = beta_icdf(approx, .5)
+                a.rmse += Math.pow(approx - actual, 2)
+            } else {
+                a.errors++
+            }
+        })
+    }
+    _.each(algs, function (a) {
+        a.rmse = Math.sqrt(a.rmse / (n - a.errors))
+
+        $('body').append($('<div/>').text(a.name + ', rmse: ' + a.rmse + ', errors: ' + a.errors))
+    })
+})
+
+</script>
+
+</body>
+</html>

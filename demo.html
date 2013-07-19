@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+	<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+	<script src="http://d3lp1msu2r81bx.cloudfront.net/kjs/js/lib/kinetic-v4.5.4.min.js"></script>
+	<script src="jquery.ba-throttle-debounce.min.js"></script>
+	<script src="demo.js"></script>
+</head>
+<body>
+	<div id="container"></div>
+	<div id="options">
+		SubDivMulAdd <input type="radio" name="algo" value="subjDivMulAdd" checked="checked"/> <br/>
+		SubDivMulAdd2 <input type="radio" name="algo" value="subjDivMulAdd2"/> <br/>
+		Fusion <input type="radio" name="algo" value="fusion"/> <br/>
+	</div>
+	<table border="1">
+		<tr>
+			<th></th>
+			<th><span style="color:green">Point A</span></th>
+			<th><span style="color:red">Point B</span></th>
+			<th><span style="color:blue">Point C</span></th>
+			<th><span style="color:gray">Point S</span></th>
+		</tr>
+		<tr>
+			<td>Belief</td>
+			<td id="a_b">0.9</td>
+			<td id="b_b">0.05</td>
+			<td id="c_b">0.05</td>
+			<td id="s_b"></td>
+		</tr>
+		<tr>
+			<td>Disbelief</td>
+			<td id="a_d">0.05</td>
+			<td id="b_d">0.9</td>
+			<td id="c_d">0.05</td>
+			<td id="s_d"></td>
+		</tr>
+		<tr>
+			<td>Uncertainty</td>
+			<td id="a_u">0.05</td>
+			<td id="b_u">0.05</td>				
+			<td id="c_u">0.9</td>
+			<td id="s_u"></td>
+		</tr>
+		<tr>
+			<td>Base rate</td>
+			<td id="a_a">0.5</td>
+			<td id="b_a">0.5</td>
+			<td id="c_a">0.5</td>
+			<td id="s_a"></td>
+		</tr>
+	</table>
+	<div>Projected estimation: <span id="est"></est></div>
+</body>
